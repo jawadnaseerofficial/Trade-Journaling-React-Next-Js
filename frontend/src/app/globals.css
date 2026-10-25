@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- theme tokens (light = your current palette, byte-for-byte) ---- */
+:root {
+  --c-canvas: 244 245 251;
+  --c-surface: 255 255 255;
+  --c-sidebar: 20 20 43;
+  --c-line: 233 234 243;
+  --c-ink: 21 22 46;
+  --c-ink-soft: 93 97 117;
+  --c-ink-mute: 154 160 180;
+  --c-primary-50: 239 237 253;
+  --c-primary-100: 227 224 251;
+  --c-primary-300: 180 172 245;
+  --c-primary-400: 144 132 242;
+  --c-primary-500: 109 93 231;
+  --c-primary-600: 90 73 214;
+  --c-primary-700: 74 59 184;
+  --c-success: 18 185 129;
+  --c-success-soft: 217 244 232;
+  --c-success-deep: 14 159 110;
+  --c-danger: 229 72 77;
+  --c-danger-soft: 250 218 221;
+  --c-danger-deep: 201 58 63;
+  --c-warn: 245 165 36;
+}
+
+/* ---- dark overrides: flip ONE class on <html>, whole app re-themes ---- */
+.dark {
+  --c-canvas: 11 14 20;
+  --c-surface: 18 22 32;
+  --c-sidebar: 14 17 23;
+  --c-line: 31 37 51;
+  --c-ink: 230 233 242;
+  --c-ink-soft: 174 180 196;
+  --c-ink-mute: 107 114 128;
+  --c-primary-50: 30 27 58;
+  --c-primary-100: 42 37 80;
+  --c-primary-300: 150 140 245;
+  --c-primary-400: 138 128 244;
+  --c-primary-500: 124 111 240;
+  --c-primary-600: 142 130 247;
+  --c-primary-700: 160 150 250;
+  --c-success: 52 211 153;
+  --c-success-soft: 14 42 34;
+  --c-success-deep: 16 185 129;
+  --c-danger: 248 113 113;
+  --c-danger-soft: 42 20 22;
+  --c-danger-deep: 239 83 80;
+  --c-warn: 250 178 60;
+}
+
+@layer base {
+  html { @apply antialiased; }
+  body { @apply bg-canvas font-sans text-[13px] text-ink; }
+  * { @apply border-line; }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { @apply rounded-full bg-line; }
+
+  /* hide the scrollbar chrome entirely (nav stays scrollable on short windows) */
+  .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}
