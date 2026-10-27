@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { cn, money } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { useDataRefresh } from "@/lib/data-refresh";
 import { ReportShell } from "./report-shell";
 import { PerformanceView } from "./performance-view";
 import { OverviewView } from "./overview-view";
@@ -43,6 +44,9 @@ export function ReportsView({
   const [playbooks, setPlaybooks] = useState<string[]>([]);
 
   const [repOpen, setRepOpen] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  useDataRefresh(() => setRefreshTick((t) => t + 1));
 
   useEffect(() => {
     let alive = true;
@@ -98,8 +102,7 @@ export function ReportsView({
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshTick]);
 
   function go(t: string, d?: string) {
     setTab(t);

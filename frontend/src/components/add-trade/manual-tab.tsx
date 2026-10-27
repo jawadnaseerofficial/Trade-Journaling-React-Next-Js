@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { notifyDataRefresh } from "@/lib/data-refresh";
 import { money } from "@/lib/utils";
 import type { Account, ExecutionInput } from "@/types";
 
@@ -60,6 +61,7 @@ export function ManualTab({ accounts, timezone }: { accounts: Account[]; timezon
         timezone: selectedTz,
         executions: rows.map(({ _id, ...e }) => e),
       }, clientGetToken() ?? undefined);
+      notifyDataRefresh();
       router.push("/"); router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save trade"); setBusy(false); }
   }

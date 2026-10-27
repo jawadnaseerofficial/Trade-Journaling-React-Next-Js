@@ -17,6 +17,7 @@ import { Select } from "@/components/ui/select";
 import { cn, money } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { useDataRefresh } from "@/lib/data-refresh";
 import type { AnalyticsOut, AnaBucket, RpFilters } from "@/types";
 
 type TabId = "pulse" | "equity" | "edge" | "timing" | "risk" | "simulate" | "regime" | "attribution" | "narrative";
@@ -103,7 +104,10 @@ export function AnalyticsView() {
   const [playbooks, setPlaybooks] = useState<string[]>([]);
   const [data, setData] = useState<AnalyticsOut | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
   const [attrDim, setAttrDim] = useState(0);
+
+  useDataRefresh(() => setRefreshTick((t) => t + 1));
 
   useEffect(() => {
     let alive = true;
@@ -116,13 +120,13 @@ export function AnalyticsView() {
       if (alive) setPlaybooks((Array.isArray(r) ? r : []).map((p: any) => String(p.name)).filter(Boolean));
     }).catch(() => {});
     return () => { alive = false; };
-  }, []);
+  }, [refreshTick]);
 
   useEffect(() => {
     let alive = true; setLoading(true);
     api.analytics.summary(filters, tok()).then((d) => { if (alive) setData(d); }).catch(() => {}).finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [filters]);
+  }, [filters, refreshTick]);
 
   const topSymbols = useMemo(() => (data?.symbols || []).slice(0, 5).map((s) => s.label), [data]);
   const symbolMonthlyData = useMemo(() => (data?.symbolMonthly || []).map((sm) => ({ month: sm.month, ...(sm.values as Record<string, number>) })), [data]);

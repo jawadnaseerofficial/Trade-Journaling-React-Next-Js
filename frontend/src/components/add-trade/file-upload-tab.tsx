@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
 import { CATEGORIES, TIMEZONES, brokerById, csvBrokers } from "@/lib/brokers";
+import { notifyDataRefresh } from "@/lib/data-refresh";
 import type { Account, ImportResult } from "@/types";
 
 export function FileUploadTab({ accounts }: { accounts: Account[] }) {
@@ -40,6 +41,7 @@ export function FileUploadTab({ accounts }: { accounts: Account[] }) {
     try {
       const res = await api.trades.importCsv(form, clientGetToken() ?? undefined);
       setResult(res);
+      notifyDataRefresh();
       setTimeout(() => { router.push("/"); router.refresh(); }, 1200);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed");

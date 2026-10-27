@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
 import { brokerById, syncBrokers } from "@/lib/brokers";
+import { notifyDataRefresh } from "@/lib/data-refresh";
 import type { BrokerConnection } from "@/types";
 
 type CredValue = string | boolean;
@@ -65,7 +66,10 @@ export function BrokerSyncTab() {
     try {
       const r = await api.brokers.sync(id, clientGetToken() ?? undefined);
       await load();
-      if (r.importedTrades > 0) setTimeout(() => { router.push("/"); router.refresh(); }, 1000);
+      if (r.importedTrades > 0) {
+        notifyDataRefresh();
+        setTimeout(() => { router.push("/"); router.refresh(); }, 1000);
+      }
     } catch (e) { setError(e instanceof Error ? e.message : "Sync failed"); await load(); }
     finally { setSyncingId(null); }
   }

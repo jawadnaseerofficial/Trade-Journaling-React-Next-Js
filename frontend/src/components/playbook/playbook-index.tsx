@@ -12,6 +12,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { cn, money, pct } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { useDataRefresh } from "@/lib/data-refresh";
 import type { PlaybookListItem } from "@/types";
 
 const PAGE = 9;
@@ -22,6 +23,7 @@ export function PlaybookIndex({ initial }: { initial: PlaybookListItem[] }) {
   const [scope, setScope] = useState<"my" | "shared">("my");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [sort, setSort] = useState(SORTS[0]);
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const [list, setList] = useState(initial);
   const [page, setPage] = useState(1);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -34,7 +36,8 @@ export function PlaybookIndex({ initial }: { initial: PlaybookListItem[] }) {
     setList(await api.playbooks.list(sc, tok()));
     setPage(1);
   }
-  useEffect(() => { reload(scope); }, [scope]);
+  useDataRefresh(() => setRefreshNonce((n) => n + 1));
+  useEffect(() => { reload(scope); }, [scope, refreshNonce]);
 
   const sorted = useMemo(() => {
     const a = [...list];

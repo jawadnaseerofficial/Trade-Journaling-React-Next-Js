@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { cn, money } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { useDataRefresh } from "@/lib/data-refresh";
 import { NoteEditor, type EditorHandle } from "./note-editor";
 import { TemplateModal } from "./template-modal";
 import type { NbDetail, NbFolder, NbListItem, NbTag, NbTemplate, NbTree } from "@/types";
@@ -21,6 +22,7 @@ export function NotebookView({ initialTree, initialNotes }: { initialTree: NbTre
   const [tree, setTree] = useState(initialTree);
   const [folder, setFolder] = useState<string>(initialTree.folders.find((f) => f.linkType === "trade")?.id || "trade");
   const [folderKey, setFolderKey] = useState<string>("trade"); // system link_type or folder id or 'all'/'deleted'
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const [notes, setNotes] = useState<NbListItem[]>(initialNotes);
   const [selId, setSelId] = useState<string | null>(initialNotes[0]?.id ?? null);
   const [detail, setDetail] = useState<NbDetail | null>(null);
@@ -35,15 +37,17 @@ export function NotebookView({ initialTree, initialNotes }: { initialTree: NbTre
   const edRef = useRef<EditorHandle>(null);
   const loadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const reloadTree = useCallback(async () => setTree(await api.notebook.tree(tok()).catch(() => initialTree)), [initialTree]);
-  const reloadTemplates = useCallback(async () => setTemplates(await api.notebook.templates(tok()).catch(() => [])), []);
-  useEffect(() => { reloadTemplates(); }, [reloadTemplates]);
+  const reloadTree = useCallback(async () => setTree(await api.notebook.tree(tok()).catch(() => initialTree)), [initialTree, tok]);
+  const reloadTemplates = useCallback(async () => setTemplates(await api.notebook.templates(tok()).catch(() => [])), [tok]);
+  useDataRefresh(() => setRefreshNonce((n) => n + 1));
+  useEffect(() => { void reloadTree(); }, [refreshNonce, reloadTree]);
+  useEffect(() => { void reloadTemplates(); }, [reloadTemplates, refreshNonce]);
 
   // load note list when folder/search/tag changes (debounced search)
   const loadNotes = useCallback(async (fk: string, qq?: string, tt?: string | null) => {
     setNotes(await api.notebook.notes(fk, qq || undefined, tt || undefined, tok()).catch(() => []));
-  }, []);
-  useEffect(() => { if (loadTimer.current) clearTimeout(loadTimer.current); loadTimer.current = setTimeout(() => loadNotes(folderKey, q, tag), q ? 250 : 0); return () => { if (loadTimer.current) clearTimeout(loadTimer.current); }; }, [folderKey, q, tag, loadNotes]);
+  }, [tok]);
+  useEffect(() => { if (loadTimer.current) clearTimeout(loadTimer.current); loadTimer.current = setTimeout(() => { void loadNotes(folderKey, q, tag); }, q ? 250 : 0); return () => { if (loadTimer.current) clearTimeout(loadTimer.current); }; }, [folderKey, q, tag, loadNotes, refreshNonce]);
 
   // load detail when selection changes
   useEffect(() => { if (!selId) { setDetail(null); return; } let alive = true; api.notebook.note(selId, tok()).then((d) => { if (alive) { setDetail(d); setTitleDraft(d.title); setRenaming(false); } }).catch(() => {}); setMenu(false); return () => { alive = false; }; }, [selId]);

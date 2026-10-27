@@ -4,6 +4,7 @@ import { Layers, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { useDataRefresh } from "@/lib/data-refresh";
 import { DayAccordion } from "./day-accordion";
 import { MiniCalendar } from "./mini-calendar";
 import { NoteDialog } from "./note-dialog";
@@ -19,6 +20,9 @@ export function JournalView({ initialMonth, initialDays, focusedDay }:
   const [expanded, setExpanded] = useState<Set<string>>(new Set(focusedDay ? [focusedDay] : initialDays.slice(0, 1).map((d) => d.date)));
   const [noteDay, setNoteDay] = useState<DaySummary | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  useDataRefresh(() => setRefreshTick((t) => t + 1));
 
   const load = useCallback(async (m: string) => {
     setLoading(true); setErr(null);
@@ -26,7 +30,7 @@ export function JournalView({ initialMonth, initialDays, focusedDay }:
     catch (e) { setErr(e instanceof Error ? e.message : "Failed to load journal"); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { if (month !== data.month) load(month); }, [month, data.month, load]);
+  useEffect(() => { load(month); }, [month, load, refreshTick]);
 
   const allCollapsed = expanded.size === 0;
   function toggleAll() { setExpanded(allCollapsed ? new Set(data.days.map((d) => d.date)) : new Set()); }

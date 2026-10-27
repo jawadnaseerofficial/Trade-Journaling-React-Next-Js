@@ -11,6 +11,7 @@ import { DonutRing, WinGauge, RatioBar } from "@/components/dashboard/kpi-access
 import { cn, money, pct } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { useDataRefresh } from "@/lib/data-refresh";
 import { HoverCard } from "./hover-card";
 import type { Account, LogPage, TradePreview } from "@/types";
 
@@ -121,12 +122,7 @@ export function TradeLogView({
     };
   }, []);
 
-  // ⟵ refresh: live-refetch when a CSV import fires elsewhere in the app
-  useEffect(() => {
-    const onImported = () => setRefreshTick((t) => t + 1);
-    window.addEventListener("tj:data-imported", onImported);
-    return () => window.removeEventListener("tj:data-imported", onImported);
-  }, []);
+  useDataRefresh(() => setRefreshTick((t) => t + 1));
 
   const load = useCallback(
     async (

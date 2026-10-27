@@ -19,6 +19,7 @@ import { DailyBars } from "@/components/charts/daily-bars";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { notifyDataRefresh } from "@/lib/data-refresh";
 import type { DashboardData, ImportResult } from "@/types";
 
 function OpenLink({ href, label }: { href: string; label: string }) {
@@ -86,8 +87,8 @@ export function DashboardView({ data, greeting }: { data: DashboardData; greetin
       fd.append("file", file); // matches the conventional UploadFile param on /api/trades/import
       const res = await api.trades.importCsv(fd, tok());
       setResult(res);
-      router.refresh(); // re-run the server-fetched dashboard so new totals appear
-      try { window.dispatchEvent(new Event("tj:data-imported")); } catch {}
+      router.refresh();
+      notifyDataRefresh();
     } catch (e: any) {
       const msg = e?.message || "Import failed.";
       setError(e?.status === 401 ? `${msg} (your session expired — log in again.)` : msg);

@@ -12,6 +12,7 @@ import { TagInput } from "@/components/ui/tag-input";
 import { cn, money } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { useDataRefresh } from "@/lib/data-refresh";
 import { CandleChart } from "./candle-chart";
 import { RunningPnlChart } from "./running-pnl-chart";
 import { ExecutionsTable } from "./executions-table";
@@ -73,6 +74,7 @@ export function ReplayView({ tradeId, day }: { tradeId: string | null; day: stri
   const [style, setStyle] = useState<ChartStyle>("lightweight");
   const [hidePnl, setHidePnl] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
+  useDataRefresh(() => setReloadNonce((n) => n + 1));
   const [loadingReplay, setLoadingReplay] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
   const [loadingCandles, setLoadingCandles] = useState(false);

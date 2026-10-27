@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { cn, money, pct } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
+import { useDataRefresh } from "@/lib/data-refresh";
 import type { BtSessionListItem, BtShare } from "@/types";
 
 const SORTS = ["Recently created", "Name A-Z", "Realised P&L", "Win %", "Trade count"];
@@ -22,6 +23,7 @@ export function SessionsView({ initial }: { initial: BtSessionListItem[] }) {
   const [scope, setScope] = useState<"my" | "shared">("my");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [sort, setSort] = useState(SORTS[0]);
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const [list, setList] = useState(initial);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renameFor, setRenameFor] = useState<BtSessionListItem | null>(null);
@@ -33,7 +35,8 @@ export function SessionsView({ initial }: { initial: BtSessionListItem[] }) {
   const [shareErr, setShareErr] = useState<string | null>(null);
 
   async function reload(sc: string = scope) { setList(await api.backtests.list(sc, tok()).catch(() => [])); }
-  useEffect(() => { reload(scope); }, [scope]);
+  useDataRefresh(() => setRefreshNonce((n) => n + 1));
+  useEffect(() => { reload(scope); }, [scope, refreshNonce]);
 
   async function openShare(s: BtSessionListItem) {
     setShareFor(s); setShareEmail(""); setShareErr(null); setMenuFor(null);
