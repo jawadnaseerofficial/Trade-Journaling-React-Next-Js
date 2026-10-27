@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.dashboard import CamelModel
 
@@ -12,6 +12,87 @@ class FiltersIn(BaseModel):
     sides: list[str] = Field(default_factory=list)        # long|short
     statuses: list[str] = Field(default_factory=list)     # closed|open
     pnl_basis: str = Field(default="net", pattern=r"^(net|gross|r)$")
+
+    @field_validator(
+        "accounts",
+        "symbols",
+        "playbooks",
+        "sides",
+        "statuses",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_list_filters(cls, v):
+        """
+        FastAPI/query params may pass None when no filter is selected.
+        Convert None / empty values into empty lists so Pydantic does not fail.
+        """
+        if v is None:
+            return []
+
+        if isinstance(v, str):
+            v = v.strip()
+            return [] if v == "" else [v]
+
+        if isinstance(v, bytes):
+            s = v.decode("utf-8", errors="ignore").strip()
+            return [] if s == "" else [s]
+
+        if isinstance(v, (list, tuple, set)):
+            out = []
+            for item in v:
+                if item is None:
+                    continue
+
+                if isinstance(item, bytes):
+                    item = item.decode("utf-8", errors="ignore")
+
+                if isinstance(item, str):
+                    item = item.strip()
+                    if item == "":
+                        continue
+
+                out.append(item)
+
+            return out
+
+        return v
+
+    @field_validator("start", "end", mode="before")
+    @classmethod
+    def _normalize_optional_dates(cls, v):
+        """
+        Empty date strings should become None, not "".
+        """
+        if v is None:
+            return None
+
+        if isinstance(v, bytes):
+            v = v.decode("utf-8", errors="ignore")
+
+        if isinstance(v, str):
+            v = v.strip()
+            return None if v == "" else v
+
+        return v
+
+    @field_validator("pnl_basis", mode="before")
+    @classmethod
+    def _normalize_pnl_basis(cls, v):
+        """
+        If pnl_basis is missing/None/empty, default to net.
+        """
+        if v is None:
+            return "net"
+
+        if isinstance(v, bytes):
+            v = v.decode("utf-8", errors="ignore")
+
+        if isinstance(v, str):
+            v = v.strip()
+            return "net" if v == "" else v
+
+        return v
 
 
 class BucketRow(CamelModel):
