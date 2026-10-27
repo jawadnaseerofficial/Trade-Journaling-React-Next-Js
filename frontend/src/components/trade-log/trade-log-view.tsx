@@ -80,6 +80,7 @@ export function TradeLogView({
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(initial.perPage);
   const [loading, setLoading] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0); // ⟵ refresh
 
   const [metrics, setMetrics] = useState<
     Record<string, { mae: number | null; mfe: number | null; bestExitPct: number | null }>
@@ -120,6 +121,13 @@ export function TradeLogView({
     };
   }, []);
 
+  // ⟵ refresh: live-refetch when a CSV import fires elsewhere in the app
+  useEffect(() => {
+    const onImported = () => setRefreshTick((t) => t + 1);
+    window.addEventListener("tj:data-imported", onImported);
+    return () => window.removeEventListener("tj:data-imported", onImported);
+  }, []);
+
   const load = useCallback(
     async (
       f: typeof filters,
@@ -128,7 +136,9 @@ export function TradeLogView({
       pg: number,
       pp: number
     ) => {
-      const key = JSON.stringify([f, s, d, pg, pp]);
+      // refreshTick is in the key so an import forces a real re-query
+      // (load early-returns on an unchanged key, so this is required)
+      const key = JSON.stringify([f, s, d, pg, pp, refreshTick]); // ⟵ refresh
       if (key === reqKey.current) return;
 
       reqKey.current = key;
@@ -158,7 +168,7 @@ export function TradeLogView({
         setLoading(false);
       }
     },
-    []
+    [refreshTick] // ⟵ refresh
   );
 
   useEffect(() => {

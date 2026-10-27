@@ -14,14 +14,19 @@ export interface TokenResponse { accessToken: string; tokenType: string; user: A
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const RETRY_ON = new Set([502, 503, 504]);
+const TIMEOUT_MS = 12_000;
+const MAX_RETRIES = 1;
 const backoff = (a: number) => new Promise((r) => setTimeout(r, 250 * 2 ** a));
 
+function isAbortError(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "name" in e && (e as any).name === "AbortError";
+}
+
 async function request<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
-  const retries = 2, timeoutMs = 20_000;
   let lastErr: unknown;
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
       const res = await fetch(`${BASE}${path}`, {
         ...init, signal: ctrl.signal, cache: "no-store",
@@ -32,18 +37,25 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
         const detail = body?.detail ?? res.statusText;
         console.error(`API Error ${res.status}:`, detail, body);
         const err = new ApiError(res.status, body?.code ?? "unknown", detail);
-        if (RETRY_ON.has(res.status) && attempt < retries) { lastErr = err; await backoff(attempt); continue; }
+        if (RETRY_ON.has(res.status) && attempt < MAX_RETRIES) { lastErr = err; await backoff(attempt); continue; }
         throw err;
       }
       if (res.status === 204) return undefined as T;
       return (await res.json()) as T;
     } catch (e) {
       lastErr = e;
+      // a true hang: fail fast with a legible message, never blind-retry
+      if (isAbortError(e)) {
+        throw new ApiError(408, "timeout", `Request timed out after ${TIMEOUT_MS / 1000}s. Check that the backend is running at ${BASE} and the endpoint isn't hanging.`);
+      }
+      // a real HTTP error that isn't a retryable gateway code: surface immediately
       if (e instanceof ApiError && !RETRY_ON.has(e.status)) throw e;
-      if (attempt < retries) { await backoff(attempt); continue; }
+      // network/gateway blip: retry once, then fall through
+      if (attempt < MAX_RETRIES) { await backoff(attempt); continue; }
     } finally { clearTimeout(timer); }
   }
-  throw lastErr instanceof Error ? lastErr : new ApiError(0, "network", "Cannot reach the API");
+  if (lastErr instanceof ApiError) throw lastErr;
+  throw new ApiError(0, "network", `Cannot reach the API at ${BASE}. Is the backend running?`);
 }
 
 const json = (token?: string) => ({ "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) });

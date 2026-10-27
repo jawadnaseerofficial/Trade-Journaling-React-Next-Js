@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Info } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn, compactMoney } from "@/lib/utils";
@@ -23,6 +24,7 @@ const monthLabel = (key: string) => {
 };
 
 export function TradingCalendar({ initial }: { initial: CalendarMonth }) {
+  const router = useRouter();
   const [monthKey, setMonthKey] = useState(initial.month);
   const [data, setData] = useState<CalendarMonth>(initial);
   const [loading, setLoading] = useState(false);
@@ -59,6 +61,12 @@ export function TradingCalendar({ initial }: { initial: CalendarMonth }) {
   const now = new Date();
   const todayKey = toMonthKey(now);
 
+  // route a visible day-cell to its dedicated day page
+  const openDay = (day: number) => {
+    const iso = `${monthKey}-${String(day).padStart(2, "0")}`;
+    router.push(`/trades/day/${iso}`);
+  };
+
   return (
     <Card>
       <div className="flex items-center justify-between px-4 pb-3 pt-4">
@@ -92,15 +100,33 @@ export function TradingCalendar({ initial }: { initial: CalendarMonth }) {
           return (
             <div
               key={day}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open ${monthKey}-${String(day).padStart(2, "0")}`}
+              title="View this day"
+              onClick={() => openDay(day)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openDay(day);
+                }
+              }}
               className={cn(
-                "relative min-h-[62px] rounded-md border p-1.5 text-center",
+                "group relative min-h-[62px] cursor-pointer rounded-md border p-1.5 text-center transition-all",
+                "hover:z-10 hover:-translate-y-0.5 hover:ring-2 hover:ring-primary-300",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500",
                 d
                   ? d.pnl >= 0
                     ? "border-success/30 bg-success-soft"
                     : "border-danger/30 bg-danger-soft"
-                  : "border-line bg-surface",
+                  : "border-line bg-surface hover:border-primary-300",
               )}
             >
+              {/* hover cue in the free top-left corner (top-right is the day number / today badge) */}
+              <span className="pointer-events-none absolute left-1.5 top-1.5 text-primary-600 opacity-0 transition-opacity group-hover:opacity-100">
+                <ArrowUpRight size={11} />
+              </span>
+
               {isToday ? (
                 <span className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-primary-500 text-[8px] font-bold text-white">
                   {day}

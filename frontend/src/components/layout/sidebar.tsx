@@ -1,16 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Plus, LayoutGrid, CalendarDays, Table2, FileBarChart2, BarChart3,
   FlaskConical, NotebookPen, BookOpen, PlayCircle, Settings,
-  LogOut, Moon, Sun, ChevronLeft, ChevronRight, type LucideIcon,
+  LogOut, ChevronLeft, ChevronRight, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { clientClearToken } from "@/lib/auth";
-import { getStoredTheme, toggleTheme, type Theme } from "@/lib/theme";
 
 const NAV_ITEMS: { id: string; label: string; icon: LucideIcon; href: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutGrid, href: "/" },
@@ -28,20 +26,12 @@ const NAV_ITEMS: { id: string; label: string; icon: LucideIcon; href: string }[]
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [theme, setThemeState] = useState<Theme>(() => getStoredTheme() ?? "light");
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme]);
 
   const addActive = pathname === "/add-trade";
 
   function onLogout() {
     clientClearToken();
     router.push("/login");
-  }
-  function onTheme() {
-    setThemeState(toggleTheme());
   }
 
   return (
@@ -51,7 +41,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         collapsed ? "w-[68px] px-2" : "w-[232px] px-3",
       )}
     >
-      {/* floating collapse toggle */}
+      {/* floating collapse toggle (desktop rail handle) */}
       <button
         onClick={onToggle}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -101,7 +91,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         })}
       </nav>
 
-      {/* bottom: logout + dark mode */}
+      {/* bottom: logout only — theme now lives solely in the topbar/settings store */}
       <div className={cn("mt-3 flex flex-col gap-1 border-t border-white/10 pt-3", collapsed && "items-center")}>
         <button
           onClick={onLogout}
@@ -114,39 +104,6 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           <LogOut size={15} strokeWidth={2.2} />
           {!collapsed && "Logout"}
         </button>
-
-        {collapsed ? (
-          <button
-            onClick={onTheme}
-            title={theme === "dark" ? "Light mode" : "Dark mode"}
-            className="grid h-9 w-9 place-items-center rounded-lg text-white/60 hover:bg-white/5 hover:text-white"
-          >
-            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-        ) : (
-          <button
-            onClick={onTheme}
-            className="flex items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-white/60 transition-colors hover:bg-white/5 hover:text-white"
-          >
-            <span className="flex items-center gap-2.5">
-              {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-              Dark Mode
-            </span>
-            <span
-              className={cn(
-                "relative h-4 w-7 shrink-0 rounded-full transition-colors",
-                theme === "dark" ? "bg-primary-500" : "bg-white/15",
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all",
-                  theme === "dark" ? "left-3.5" : "left-0.5",
-                )}
-              />
-            </span>
-          </button>
-        )}
       </div>
     </aside>
   );
