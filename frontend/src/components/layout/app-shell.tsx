@@ -1,10 +1,7 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
-import { Sidebar } from "./sidebar";
-import { Topbar } from "./topbar";
-import { cn } from "@/lib/utils";
 
-const COLLAPSE_KEY = "tj-sidebar-collapsed";
+import { useEffect, type ReactNode } from "react";
+import { useShell } from "./shell-context";
 
 export function AppShell({
   title,
@@ -15,26 +12,17 @@ export function AppShell({
   rangeLabel?: string;
   children: ReactNode;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const { setTitle, setRangeLabel } = useShell();
 
   useEffect(() => {
-    try { setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1"); } catch { /* ignore */ }
-  }, []);
-  function toggle() {
-    setCollapsed((c) => {
-      const n = !c;
-      try { localStorage.setItem(COLLAPSE_KEY, n ? "1" : "0"); } catch { /* ignore */ }
-      return n;
-    });
-  }
+    setTitle(title);
+  }, [title, setTitle]);
 
-  return (
-    <div className="min-h-screen">
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
-      <div className={cn("transition-[padding] duration-200 ease-out", collapsed ? "pl-[68px]" : "pl-[232px]")}>
-        <Topbar title={title} rangeLabel={rangeLabel} onToggle={toggle} />
-        <main className="p-5">{children}</main>
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    setRangeLabel(rangeLabel);
+  }, [rangeLabel, setRangeLabel]);
+
+  // The real sidebar + topbar are rendered once by <RootChrome> in the layout.
+  // Here we only pass the page content through, so navigation never remounts the chrome.
+  return <>{children}</>;
 }

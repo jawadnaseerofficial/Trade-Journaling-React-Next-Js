@@ -1,4 +1,5 @@
 import math
+import os
 import random
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -6,6 +7,13 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import (
+    get_data_version,
+    get_json,
+    make_key,
+    set_json,
+    stable_hash,
+)
 from app.db.models import Account, Playbook, Trade
 from app.schemas.analytics import (
     AnalyticsOut,
@@ -64,6 +72,7 @@ _DIST_LABELS = [
 ]
 
 _TRADE_CAP = 5000
+_ANALYTICS_CACHE_TTL = int(os.getenv("ANALYTICS_CACHE_TTL") or "60")
 
 
 def _col(model, *names):
@@ -1305,6 +1314,26 @@ def _narrative(
 
 
 async def analyze(session, tenant_id, flt):
+    cache_key = None
+
+    try:
+        version = await get_data_version(str(tenant_id))
+        filter_hash = stable_hash(flt.model_dump(mode="json"))
+        cache_key = make_key(
+            "analytics",
+            "summary",
+            str(tenant_id),
+            str(version),
+            filter_hash,
+        )
+
+        cached = await get_json(cache_key)
+
+        if cached is not None:
+            return AnalyticsOut.model_validate(cached)
+    except Exception:
+        cache_key = None
+
     daily = await _daily_rows(session, tenant_id, flt)
     totals = await _totals(session, tenant_id, flt)
 
@@ -1384,7 +1413,7 @@ async def analyze(session, tenant_id, flt):
         "mcCap": _TRADE_CAP,
     }
 
-    return AnalyticsOut(
+    result = AnalyticsOut(
         meta=meta,
         kpis=kpis,
         equity=equity,
@@ -1405,3 +1434,15 @@ async def analyze(session, tenant_id, flt):
         attribution=attribution,
         narrative=narrative,
     )
+
+    try:
+        if cache_key:
+            await set_json(
+                cache_key,
+                result.model_dump(mode="json", by_alias=False),
+                _ANALYTICS_CACHE_TTL,
+            )
+    except Exception:
+        pass
+
+    return result

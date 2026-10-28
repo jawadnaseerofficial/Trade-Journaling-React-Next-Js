@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import { ShellProvider } from "@/components/layout/shell-context";
+import { RootChrome } from "@/components/layout/root-chrome";
+
 export const metadata: Metadata = {
   title: "tradeJournaling",
   description: "Trading journal & performance dashboard",
@@ -14,7 +17,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeBoot }} />
-        {children}
+        <ShellProvider>
+          <RootChrome>{children}</RootChrome>
+        </ShellProvider>
       </body>
     </html>
   );
