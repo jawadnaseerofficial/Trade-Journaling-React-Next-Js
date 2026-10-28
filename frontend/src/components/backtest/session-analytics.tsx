@@ -27,7 +27,7 @@ export function SessionAnalytics({ state, session, completion, notes, onAddNote,
   const days = useMemo(() => {
     const m = new Map<string, BtRealized[]>();
     for (const r of state.realized) { const k = etDay(r.exitTime); (m.get(k) ?? m.set(k, []).get(k)!).push(r); }
-    return [...m.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    return Array.from(m.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [state.realized]);
 
   return (

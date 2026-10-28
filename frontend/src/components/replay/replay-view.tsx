@@ -63,10 +63,10 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return <div className="flex items-center justify-between border-b border-line/60 py-2 last:border-0"><span className="text-[11px] text-ink-soft">{label}</span><span className="text-[11px] font-bold tabular-nums">{children}</span></div>;
 }
 
-export function ReplayView({ tradeId, day }: { tradeId: string | null; day: string | null }) {
+export function ReplayView({ tradeId, day, initial }: { tradeId: string | null; day: string | null; initial?: ReplayData | null }) {
   const router = useRouter();
   const tok = useCallback(() => clientGetToken() ?? undefined, []);
-  const [data, setData] = useState<ReplayData | null>(null);
+  const [data, setData] = useState<ReplayData | null>(initial ?? null);
   const [dayTrades, setDayTrades] = useState<TradeSummary[]>([]);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [fallbackNote, setFallbackNote] = useState("");
@@ -86,7 +86,13 @@ export function ReplayView({ tradeId, day }: { tradeId: string | null; day: stri
   useEffect(() => { api.users.getMe(tok()).then((u) => setStyle((u.chartStyle as ChartStyle) ?? "lightweight")).catch(() => {}); }, [tok]);
 
   useEffect(() => {
-    if (!tradeId) { setData(null); return; }
+    if (!tradeId) { setData(initial ?? null); return; }
+    if (initial && initial.trade.id === tradeId) {
+      setData(initial);
+      setErr(null);
+      setLoadingReplay(false);
+      return;
+    }
     let alive = true;
     setLoadingReplay(true);
     api.trades.replay(tradeId, "1m", tok())
@@ -94,7 +100,7 @@ export function ReplayView({ tradeId, day }: { tradeId: string | null; day: stri
       .catch((e) => { if (alive) { setErr(e instanceof Error ? e.message : "Failed to load replay"); setData(null); } })
       .finally(() => { if (alive) setLoadingReplay(false); });
     return () => { alive = false; };
-  }, [tradeId, reloadNonce, tok]);
+  }, [tradeId, reloadNonce, tok, initial]);
 
   useEffect(() => {
     if (!effDay) { setDayTrades([]); return; }

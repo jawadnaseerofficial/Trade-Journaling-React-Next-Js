@@ -253,7 +253,7 @@ export function TradeLogView({
   async function bulkAttach() {
     if (!attachPb) return;
 
-    for (const id of selected) {
+    for (const id of Array.from(selected)) {
       await api.trades.linkPlaybook(id, attachPb, tok());
     }
 
@@ -483,7 +483,7 @@ export function TradeLogView({
 
                 <th className="px-3 py-2 text-center">Insights</th>
                 <th className="px-3 py-2">Setups</th>
-                <th className="px-3 py-2">Zella Scale</th>
+                <th className="px-3 py-2">AI Scale</th>
                 <th className="px-3 py-2 text-right">Best Exit</th>
               </tr>
             </thead>

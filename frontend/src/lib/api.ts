@@ -16,41 +16,77 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const RETRY_ON = new Set([502, 503, 504]);
 const TIMEOUT_MS = 12_000;
 const MAX_RETRIES = 1;
+const GET_CACHE_TTL_MS = 60_000;
+const GET_CACHE = new Map<string, { expiresAt: number; promise: Promise<unknown> }>();
 const backoff = (a: number) => new Promise((r) => setTimeout(r, 250 * 2 ** a));
 
 function isAbortError(e: unknown): boolean {
   return typeof e === "object" && e !== null && "name" in e && (e as any).name === "AbortError";
 }
 
+function isGetRequest(init?: RequestInit): boolean {
+  return !init?.method || init.method.toUpperCase() === "GET";
+}
+
+function invalidateGetCache(): void {
+  for (const key of Array.from(GET_CACHE.keys())) {
+    GET_CACHE.delete(key);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const isGet = isGetRequest(init);
+  const cacheKey = `${method}:${path}:${token ?? ""}`;
+
+  if (isGet) {
+    const cached = GET_CACHE.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.promise as Promise<T>;
+    }
+    GET_CACHE.delete(cacheKey);
+  }
+
   let lastErr: unknown;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
-      const res = await fetch(`${BASE}${path}`, {
-        ...init, signal: ctrl.signal, cache: "no-store",
+      const requestPromise = fetch(`${BASE}${path}`, {
+        ...init,
+        method,
+        signal: ctrl.signal,
+        cache: isGet ? "force-cache" : "no-store",
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init?.headers ?? {}) },
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          const detail = body?.detail ?? res.statusText;
+          console.error(`API Error ${res.status}:`, detail, body);
+          const err = new ApiError(res.status, body?.code ?? "unknown", detail);
+          if (RETRY_ON.has(res.status) && attempt < MAX_RETRIES) {
+            throw err;
+          }
+          throw err;
+        }
+
+        if (res.status === 204) return undefined as T;
+        return (await res.json()) as T;
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        const detail = body?.detail ?? res.statusText;
-        console.error(`API Error ${res.status}:`, detail, body);
-        const err = new ApiError(res.status, body?.code ?? "unknown", detail);
-        if (RETRY_ON.has(res.status) && attempt < MAX_RETRIES) { lastErr = err; await backoff(attempt); continue; }
-        throw err;
+
+      const result = await requestPromise;
+      if (isGet) {
+        GET_CACHE.set(cacheKey, { expiresAt: Date.now() + GET_CACHE_TTL_MS, promise: Promise.resolve(result) });
+      } else {
+        invalidateGetCache();
       }
-      if (res.status === 204) return undefined as T;
-      return (await res.json()) as T;
+      return result;
     } catch (e) {
       lastErr = e;
-      // a true hang: fail fast with a legible message, never blind-retry
       if (isAbortError(e)) {
         throw new ApiError(408, "timeout", `Request timed out after ${TIMEOUT_MS / 1000}s. Check that the backend is running at ${BASE} and the endpoint isn't hanging.`);
       }
-      // a real HTTP error that isn't a retryable gateway code: surface immediately
       if (e instanceof ApiError && !RETRY_ON.has(e.status)) throw e;
-      // network/gateway blip: retry once, then fall through
       if (attempt < MAX_RETRIES) { await backoff(attempt); continue; }
     } finally { clearTimeout(timer); }
   }

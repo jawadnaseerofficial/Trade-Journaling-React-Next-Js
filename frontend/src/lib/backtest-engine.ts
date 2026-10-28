@@ -76,7 +76,7 @@ export function simulate(candles: Candle[], actions: BtAction[], uptoTime: numbe
     for (const p of open.values()) upnl += (c.close - p.entry) * p.qty * dirOf(p.side);
     equity.push({ time: c.time, value: r2(balance + upnl) });
   }
-  return { balance: r2(balance), open: [...open.values()], pending: [...pending.values()], realized, events, equity };
+  return { balance: r2(balance), open: Array.from(open.values()), pending: Array.from(pending.values()), realized, events, equity };
 }
 
 /** Aggregate base candles up to a coarser timeframe (exact; powers the playback interval selector). */
@@ -88,7 +88,7 @@ export function aggregate(candles: Candle[], factorMin: number): Candle[] {
     const k = Math.floor(c.time / step) * step;
     (buckets.get(k) ?? buckets.set(k, []).get(k)!).push(c);
   }
-  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).map(([k, cs]) => ({
+  return Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]).map(([k, cs]) => ({
     time: k, open: cs[0].open, high: Math.max(...cs.map((x) => x.high)),
     low: Math.min(...cs.map((x) => x.low)), close: cs.at(-1)!.close, volume: cs.reduce((s, x) => s + x.volume, 0),
   }));

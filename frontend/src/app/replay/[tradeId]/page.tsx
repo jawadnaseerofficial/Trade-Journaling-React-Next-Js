@@ -10,7 +10,7 @@ export default async function ReplayTradePage({ params }: { params: { tradeId: s
   const data = await api.trades.replay(params.tradeId, "1m", token).catch(() => null);
   return (
     <AppShell title="Tracking">
-      <ReplayView initial={data} tradeId={params.tradeId} />
+      <ReplayView initial={data} tradeId={params.tradeId} day={null} />
     </AppShell>
   );
 }

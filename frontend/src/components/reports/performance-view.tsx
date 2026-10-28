@@ -39,7 +39,7 @@ export function PerformanceView({ filters, setFilters, accounts, symbols, playbo
       row[s.metric] = p.v;
       m.set(p.t, row);
     }));
-    return [...m.values()];
+    return Array.from(m.values());
   }, [data]);
 
   const addMetric = (id: string) => {

@@ -283,7 +283,11 @@ function Row({ k, v, tone }: { k: string; v: string; tone?: "pos" | "neg" }) {
 
 function MiniCalendar({ candles, upto, onPick }: { candles: Candle[]; upto: number; onPick: (t: number) => void }) {
   const days = useMemo(() => { const m = new Map<string, number>(); for (const c of candles) { const k = new Date(c.time * 1000).toLocaleDateString("en-CA", { timeZone: "America/New_York" }); if (!m.has(k)) m.set(k, c.time); } return m; }, [candles]);
-  const months = useMemo(() => { const set = new Set<string>(); for (const c of candles) set.add(new Date(c.time * 1000).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "America/New_York" })); return [...set]; }, [candles]);
+  const months = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of candles) set.add(new Date(c.time * 1000).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "America/New_York" }));
+    return Array.from(set);
+  }, [candles]);
   const [mo, setMo] = useState(months[0] ?? "");
   const grid = useMemo(() => {
     if (!mo) return [];

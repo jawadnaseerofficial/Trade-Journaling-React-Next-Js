@@ -1,9 +1,12 @@
+import logging
 import time
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
 from app.core.errors import DomainError
+
+logger = logging.getLogger("tradejournaling.market_data")
 
 # Unofficial but standard Yahoo chart endpoint (same one the `yfinance` lib uses).
 # Called server-side -> no CORS, one place to swap for a licensed feed in prod.
@@ -13,6 +16,7 @@ _INTERVALS = {"1m", "5m", "15m", "1h", "1d"}
 
 # tiny in-proc TTL cache (dev). Swap body for Redis when we wire it -> same signature.
 _cache: dict[tuple[str, str, str], tuple[float, list[dict]]] = {}
+_invalid_cache: set[tuple[str, str, str]] = set()
 _CACHE_TTL = 300
 
 
@@ -30,6 +34,8 @@ async def get_candles(symbol: str, day: date, interval: str = "1m") -> list[dict
         interval = "1m"
     key = (sym, day.isoformat(), interval)
     now = time.time()
+    if key in _invalid_cache:
+        return []
     hit = _cache.get(key)
     if hit and hit[0] > now:
         return hit[1]
@@ -43,8 +49,10 @@ async def get_candles(symbol: str, day: date, interval: str = "1m") -> list[dict
     except httpx.HTTPError as e:
         raise DomainError(f"Market data network error: {e.__class__.__name__}")
 
-    if r.status_code == 404:
-        raise DomainError(f"No market data for '{sym}' (unknown symbol)")
+    if r.status_code in (404, 422):
+        _invalid_cache.add(key)
+        logger.debug("Yahoo market data not available for %s %s %s (HTTP %s)", sym, day.isoformat(), interval, r.status_code)
+        return []
     if r.status_code == 429:
         raise DomainError("Yahoo rate-limited this request. Try again in a minute or widen the interval.")
     if r.status_code != 200:

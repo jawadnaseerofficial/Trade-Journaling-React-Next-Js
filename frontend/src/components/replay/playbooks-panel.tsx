@@ -9,11 +9,11 @@ import type { ReplayTrade, WithRulesPlaybook } from "@/types";
 export function PlaybooksPanel({ trade, onChanged }: { trade: ReplayTrade; onChanged: () => void }) {
   const tok = () => clientGetToken() ?? undefined;
   const [list, setList] = useState<WithRulesPlaybook[]>([]);
-  const [selected, setSelected] = useState<string | null>(trade.playbookId);
-  const [followed, setFollowed] = useState<Set<string>>(new Set(trade.followedRuleIds));
+  const [selected, setSelected] = useState<string | null>(trade.playbook ?? null);
+  const [followed, setFollowed] = useState<Set<string>>(new Set());
 
   useEffect(() => { api.playbooks.withRules(tok()).then(setList).catch(() => {}); }, []);
-  useEffect(() => { setSelected(trade.playbookId); setFollowed(new Set(trade.followedRuleIds)); }, [trade.id, trade.playbookId, trade.followedRuleIds]);
+  useEffect(() => { setSelected(trade.playbook ?? null); setFollowed(new Set()); }, [trade.id, trade.playbook]);
 
   const pb = list.find((p) => p.id === selected) ?? null;
   const visibleRules = useMemo(() => {
