@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import { StarRating } from "@/components/ui/star-rating";
 import { TagInput } from "@/components/ui/tag-input";
 import { cn, money } from "@/lib/utils";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
 import { useDataRefresh } from "@/lib/data-refresh";
 import { CandleChart } from "./candle-chart";
@@ -97,7 +97,16 @@ export function ReplayView({ tradeId, day, initial }: { tradeId: string | null; 
     setLoadingReplay(true);
     api.trades.replay(tradeId, "1m", tok())
       .then((d) => { if (alive) { setData(d); setErr(null); } })
-      .catch((e) => { if (alive) { setErr(e instanceof Error ? e.message : "Failed to load replay"); setData(null); } })
+      .catch((e) => {
+        if (!alive) return;
+        if (e instanceof ApiError && e.status === 404) {
+          setErr("This trade is no longer available in the current tenant.");
+          setData(null);
+          return;
+        }
+        setErr(e instanceof Error ? e.message : "Failed to load replay");
+        setData(null);
+      })
       .finally(() => { if (alive) setLoadingReplay(false); });
     return () => { alive = false; };
   }, [tradeId, reloadNonce, tok, initial]);

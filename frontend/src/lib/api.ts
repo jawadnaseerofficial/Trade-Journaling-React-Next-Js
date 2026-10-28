@@ -56,7 +56,7 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
         ...init,
         method,
         signal: ctrl.signal,
-        cache: isGet ? "force-cache" : "no-store",
+        cache: "no-store",
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init?.headers ?? {}) },
       }).then(async (res) => {
         if (!res.ok) {

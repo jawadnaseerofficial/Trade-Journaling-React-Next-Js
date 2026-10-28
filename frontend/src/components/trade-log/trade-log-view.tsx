@@ -216,7 +216,11 @@ export function TradeLogView({
       try {
         const p = await api.trades.preview(id, tok());
         setHover((h) => (h && h.id === id ? { ...h, data: p } : h));
-      } catch {
+      } catch (e) {
+        if (e instanceof Error && "status" in e && (e as any).status === 404) {
+          setHover((h) => (h && h.id === id ? { ...h, data: null } : h));
+          return;
+        }
         setHover((h) => (h && h.id === id ? { ...h, data: null } : h));
       }
     }, 250);

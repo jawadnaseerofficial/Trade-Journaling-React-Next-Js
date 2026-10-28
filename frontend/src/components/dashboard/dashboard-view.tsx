@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -19,7 +19,7 @@ import { DailyBars } from "@/components/charts/daily-bars";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
-import { notifyDataRefresh } from "@/lib/data-refresh";
+import { notifyDataRefresh, useDataRefresh } from "@/lib/data-refresh";
 import type { DashboardData, ImportResult } from "@/types";
 
 function OpenLink({ href, label }: { href: string; label: string }) {
@@ -47,9 +47,33 @@ export function DashboardView({ data, greeting }: { data: DashboardData; greetin
   const tok = () => clientGetToken() ?? undefined;
   const today = new Date().toISOString().slice(0, 10);
   const dayHref = `/trades/day/${today}`;
+  const [dashboardData, setDashboardData] = useState(data);
+  const [refreshTick, setRefreshTick] = useState(0);
 
-  const lastImport = data.lastImportAt
-    ? new Date(data.lastImportAt).toLocaleString("en-US", {
+  useDataRefresh(() => setRefreshTick((t) => t + 1));
+
+  useEffect(() => {
+    setDashboardData(data);
+  }, [data]);
+
+  useEffect(() => {
+    let alive = true;
+    const token = tok();
+    if (!token) return;
+
+    api.dashboard.summary(token)
+      .then((next) => {
+        if (alive) setDashboardData(next);
+      })
+      .catch(() => {
+        if (alive) setDashboardData(data);
+      });
+
+    return () => { alive = false; };
+  }, [data, refreshTick]);
+
+  const lastImport = dashboardData.lastImportAt
+    ? new Date(dashboardData.lastImportAt).toLocaleString("en-US", {
         month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
       })
     : "never";
@@ -112,7 +136,7 @@ export function DashboardView({ data, greeting }: { data: DashboardData; greetin
       {/* KPI strip — whole strip opens Analytics */}
       <Link href="/analytics" className="group relative block rounded-xl transition hover:ring-2 hover:ring-primary-200">
         <CornerArrow />
-        <KpiStrip kpi={data.kpi} />
+        <KpiStrip kpi={dashboardData.kpi} />
       </Link>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -120,10 +144,10 @@ export function DashboardView({ data, greeting }: { data: DashboardData; greetin
           <CardHeader title="Trader Score" hint="Composite performance score" right={<><Badge>Beta</Badge><OpenLink href="/analytics" label="Analytics" /></>} />
           <Link href="/analytics" className="group relative block rounded-lg transition hover:bg-canvas/30">
             <CornerArrow />
-            <ScoreRadar axes={data.score.axes} />
+            <ScoreRadar axes={dashboardData.score.axes} />
           </Link>
           <p className="pb-4 text-center text-[11px] font-semibold text-ink-soft">
-            Your Score: <span className="text-sm font-extrabold text-success">{data.score.value}</span>
+            Your Score: <span className="text-sm font-extrabold text-success">{dashboardData.score.value}</span>
           </p>
         </Card>
 
@@ -131,7 +155,7 @@ export function DashboardView({ data, greeting }: { data: DashboardData; greetin
           <CardHeader title="Daily Net Cumulative P&L" hint="Running total of realized P&L" right={<OpenLink href="/trades" label="Trade log" />} />
           <Link href="/trades" className="group relative block rounded-lg px-2 pb-4 transition hover:bg-canvas/40">
             <CornerArrow />
-            <CumulativeArea data={data.cumulative} />
+            <CumulativeArea data={dashboardData.cumulative} />
           </Link>
         </Card>
 
@@ -139,7 +163,7 @@ export function DashboardView({ data, greeting }: { data: DashboardData; greetin
           <CardHeader title="Net Daily P&L" hint="Realized P&L per day — click to open today" right={<OpenLink href={dayHref} label="Today" />} />
           <Link href={dayHref} className="group relative block rounded-lg px-2 pb-4 transition hover:bg-canvas/40">
             <CornerArrow />
-            <DailyBars data={data.daily} />
+            <DailyBars data={dashboardData.daily} />
           </Link>
         </Card>
       </div>
@@ -149,9 +173,9 @@ export function DashboardView({ data, greeting }: { data: DashboardData; greetin
             so they are intentionally NOT wrapped here (a wrapper would steal their
             row clicks / month-nav arrows). Per-day square routing lights up the
             moment trading-calendar.tsx is wired (see note in chat). */}
-        <RecentTrades recent={data.recentTrades} open={data.openPositions} />
+        <RecentTrades recent={dashboardData.recentTrades} open={dashboardData.openPositions} />
         <div className="lg:col-span-2">
-          <TradingCalendar initial={data.calendar} />
+          <TradingCalendar initial={dashboardData.calendar} />
         </div>
       </div>
 
