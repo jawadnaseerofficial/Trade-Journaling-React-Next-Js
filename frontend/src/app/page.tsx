@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+
 import { AppShell } from "@/components/layout/app-shell";
-import { DashboardView } from "@/components/dashboard/dashboard-view";
+import { LazyView } from "@/components/lazy/lazy-views";
 import { api, ApiError } from "@/lib/api";
 import { serverToken } from "@/lib/auth-server";
 
@@ -25,7 +26,7 @@ export default async function DashboardPage() {
 
   return (
     <AppShell title="Dashboard" rangeLabel={data.rangeLabel}>
-      <DashboardView data={data} greeting={greeting()} />
+      <LazyView name="dashboard" data={data} greeting={greeting()} />
     </AppShell>
   );
 }
