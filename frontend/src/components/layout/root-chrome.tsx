@@ -58,9 +58,10 @@ export function RootChrome({ children }: { children: ReactNode }) {
     });
   }
 
-  // login / register have their own full-screen layout, no chrome
+  // login / register and full-screen replay pages have their own standalone layouts
   const isAuthPage = pathname === "/login" || pathname.startsWith("/login/");
-  if (isAuthPage) {
+  const isFullScreenPage = pathname === "/replay-live";
+  if (isAuthPage || isFullScreenPage) {
     return <>{children}</>;
   }
 
