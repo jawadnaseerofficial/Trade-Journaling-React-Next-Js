@@ -9,10 +9,11 @@ import {
   ArrowLeft, Camera, ChevronDown, Crosshair, Eraser, Eye, Lock, Maximize2, Minimize2,
   Pause, Play, Ruler, Settings2, SkipBack, SkipForward, Trash2, TrendingUp, Type,
 } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { cn, money } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { clientGetToken } from "@/lib/auth";
-import type { Candle, Marker, ReplayData, ReplayExecution, TradeSummary } from "@/types";
+import type { Candle, ChartStyle, Marker, ReplayData, ReplayExecution, TradeSummary } from "@/types";
 
 const INTERVALS = ["1m", "5m", "15m", "1h", "1d"];
 const SPEEDS = [1, 2, 5, 10];
@@ -102,6 +103,63 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "po
   );
 }
 
+function SimpleLiveChart({ candles, markers, entry, stop, target, initTarget }: { candles: Candle[]; markers: Marker[]; entry: number | null; stop: number | null; target: number | null; initTarget: number | null }) {
+  const fmtTime = (t: number) => new Date(t * 1000).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const data = candles.map((c) => ({ time: fmtTime(c.time), price: c.close }));
+  const dots = markers.map((m) => ({ x: fmtTime(m.time), y: m.price, buy: m.side === "buy", label: m.label }));
+  const allPrices = [...candles.flatMap((c) => [c.low, c.high, c.close]), ...markers.map((m) => m.price), ...(entry != null ? [entry] : []), ...(stop != null ? [stop] : []), ...(target != null ? [target] : []), ...(initTarget != null ? [initTarget] : [])];
+  const yMin = allPrices.length ? Math.min(...allPrices) : 0;
+  const yMax = allPrices.length ? Math.max(...allPrices) : 1;
+  const pad = (yMax - yMin) * 0.12 || 1;
+  const lineLabels = [
+    ...(entry != null ? [{ price: entry, color: "#E2E8F0", label: "ENTRY" }] : []),
+    ...(stop != null ? [{ price: stop, color: "#EF5350", label: "STOP" }] : []),
+    ...(target != null ? [{ price: target, color: "#26A69A", label: "TARGET" }] : []),
+    ...(initTarget != null ? [{ price: initTarget, color: "#F5A524", label: "INIT TGT" }] : []),
+  ];
+
+  return (
+    <div className="h-full w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 10, right: 14, left: 6, bottom: 0 }}>
+          <defs>
+            <linearGradient id="simpleLiveFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.38} />
+              <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0.08} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="#1C2435" strokeDasharray="3 3" />
+          <XAxis dataKey="time" tick={{ fontSize: 9, fill: "#9AA0B4" }} minTickGap={30} interval={0} />
+          <YAxis domain={[yMin - pad, yMax + pad]} tick={{ fontSize: 9, fill: "#9AA0B4" }} tickFormatter={(v) => `$${Number(v).toFixed(2)}`} width={62} />
+          {lineLabels.map((line) => (
+            <ReferenceLine
+              key={`${line.label}-${line.price}`}
+              y={line.price}
+              stroke={line.color}
+              strokeDasharray="5 7"
+              strokeWidth={1.2}
+              ifOverflow="extendDomain"
+              label={{ value: `${line.label} ${line.price.toFixed(2)}`, position: "right", fill: line.color, fontSize: 11, fontWeight: 700 }}
+            />
+          ))}
+          {dots.map((pt, idx) => (
+            <ReferenceDot
+              key={`${pt.label}-${idx}`}
+              x={pt.x}
+              y={pt.y}
+              r={4.5}
+              fill={pt.buy ? "#12B981" : "#E5484D"}
+              stroke="#0B0E14"
+              strokeWidth={1.5}
+            />
+          ))}
+          <Area type="monotone" dataKey="price" stroke="#C4B5FD" strokeWidth={2.5} fill="url(#simpleLiveFill)" isAnimationActive animationDuration={220} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function Chip({ text, tone }: { text: string; tone: "purple" | "amber" }) {
   return <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold", tone === "purple" ? "bg-primary-500/20 text-primary-300" : "bg-amber-500/20 text-amber-300")}>{text}</span>;
 }
@@ -117,6 +175,7 @@ export function ReplayLiveView({ tradeId, day }: { tradeId: string | null; day: 
   const [dayTrades, setDayTrades] = useState<TradeSummary[]>([]);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [interval, setInterval] = useState("1m");
+  const [chartStyle, setChartStyle] = useState<ChartStyle>("lightweight");
   const [idx, setIdx] = useState(1);            // revealed candle count
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -126,6 +185,13 @@ export function ReplayLiveView({ tradeId, day }: { tradeId: string | null; day: 
   const [loading, setLoading] = useState(true);
 
   const effDay = data?.day ?? day ?? null;
+
+  useEffect(() => { api.users.getMe(tok()).then((u) => setChartStyle((u.chartStyle as ChartStyle) ?? "lightweight")).catch(() => {}); }, [tok]);
+
+  async function saveStyle(s: ChartStyle) {
+    setChartStyle(s);
+    await api.users.setChartStyle(s, tok());
+  }
 
   // resolve a trade when opened without one (today's latest)
   useEffect(() => {
@@ -340,10 +406,25 @@ export function ReplayLiveView({ tradeId, day }: { tradeId: string | null; day: 
                 {INTERVALS.map((iv) => (
                   <button key={iv} onClick={() => setInterval(iv)} className={cn("rounded px-1.5 py-0.5 text-[9px] font-bold", interval === iv ? "bg-primary-500 text-white" : "text-slate-400 hover:bg-white/5")}>{iv}</button>
                 ))}
+                <select value={chartStyle} onChange={(e) => saveStyle(e.target.value as ChartStyle)} className="ml-2 rounded border border-white/10 bg-[#161B27] px-1.5 py-0.5 text-[9px] font-bold text-slate-200 outline-none">
+                  <option value="lightweight">Lightweight chart</option>
+                  <option value="simple">Simple chart</option>
+                </select>
               </div>
               {candles.length === 0 ? (
                 <div className="grid h-full place-items-center px-6 text-center text-[11px] text-slate-500">
                   {loading ? "Loading market data…" : (err ?? "No candles for this symbol/day. Yahoo free feed = OHLCV only; try a wider interval or another date.")}
+                </div>
+              ) : chartStyle === "simple" ? (
+                <div className="h-full w-full p-2 pt-10">
+                  <SimpleLiveChart
+                    candles={visible}
+                    markers={visibleMarkers}
+                    entry={entryPrice}
+                    stop={data?.trade.stopLoss ?? null}
+                    target={data?.trade.profitTarget ?? null}
+                    initTarget={data?.trade.initialTarget ?? null}
+                  />
                 </div>
               ) : (
                 <LiveChart candles={visible} markers={visibleMarkers} entry={entryPrice} stop={data?.trade.stopLoss ?? null} target={data?.trade.profitTarget ?? null} initTarget={data?.trade.initialTarget ?? null} />

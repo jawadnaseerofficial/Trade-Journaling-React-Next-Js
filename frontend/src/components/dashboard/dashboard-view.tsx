@@ -141,7 +141,7 @@ export function DashboardView({ data, greeting }: { data: DashboardData; greetin
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
-          <CardHeader title="Trader Score" hint="Composite performance score" right={<><Badge>Beta</Badge><OpenLink href="/analytics" label="Analytics" /></>} />
+          <CardHeader title="Trader Score" hint="Composite performance score" right={<><OpenLink href="/analytics" label="Analytics" /></>} />
           <Link href="/analytics" className="group relative block rounded-lg transition hover:bg-canvas/30">
             <CornerArrow />
             <ScoreRadar axes={dashboardData.score.axes} />

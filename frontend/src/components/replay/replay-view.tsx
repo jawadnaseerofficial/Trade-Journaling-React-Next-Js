@@ -193,8 +193,7 @@ export function ReplayView({ tradeId, day, initial }: { tradeId: string | null; 
       <div className="flex items-center justify-between">
         <Link href="/journal" className="flex items-center gap-1 text-[11px] font-bold text-ink-soft hover:text-primary-600"><ArrowLeft size={13} /> BACK</Link>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm"><Play size={12} /> REPLAY</Button>
-          <Button variant="outline" size="sm" onClick={openLiveTab} disabled={!data}><Maximize2 size={12} /> Open new Tab</Button>
+          <Button variant="outline" size="sm" onClick={openLiveTab} disabled={!data}><Maximize2 size={12} /> Replay live</Button>
           <Button variant="icon" size="iconSm" disabled={!data?.prevTradeId} onClick={() => onNeighbor(data?.prevTradeId ?? null)}><ChevronLeft size={14} /></Button>
           <span className="text-[10px] font-bold text-ink-mute">Previous / Next Trade</span>
           <Button variant="icon" size="iconSm" disabled={!data?.nextTradeId} onClick={() => onNeighbor(data?.nextTradeId ?? null)}><ChevronRight size={14} /></Button>
